@@ -38,3 +38,13 @@ export function modifyResult(matchup) {
   }
   matchup.result = null;
 }
+
+// Helper function to create and download JSON file
+export function createJSONFile(tournamentData) {
+  const json = JSON.stringify(tournamentData, null, 2); // Pretty-printed JSON
+  const blob = new Blob([json], { type: 'application/json' }); // Create Blob from JSON data
+  const link = document.createElement('a'); // Create <a> element
+  link.href = URL.createObjectURL(blob); // Create Object URL for the Blob
+  link.download = 'tournament-data.json'; // Set file name
+  link.click(); // Trigger the download by clicking the link programmatically
+}

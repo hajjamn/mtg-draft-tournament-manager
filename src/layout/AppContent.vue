@@ -3,6 +3,7 @@ import PlayerInput from '../components/PlayerInput.vue';
 import MatchupDisplay from '../components/MatchupDisplay.vue';
 import PlayerStandings from '../components/PlayerStandings.vue';
 import ClearDataModal from '../components/ClearDataModal.vue';
+import { randomizeMatchups, createJSONFile } from '../utils/tournamentHelpers.js'; // Updated import
 
 export default {
   components: {
@@ -20,36 +21,21 @@ export default {
         { name: '', score: 0 }
       ],
       tournamentStarted: false,
-      rounds: [], // To store the matchups by round
+      rounds: [],
       currentRound: 1,
-      showModal: false, // Modal state
-      validationPassed: false // To track validation status
+      showModal: false,
+      validationPassed: false,
+      uploadError: '' // Error message for file validation
     };
   },
   methods: {
     startTournament() {
-      // Call validatePlayers method explicitly
       this.$refs.playerInput.validatePlayers();
       if (this.validationPassed) {
         this.tournamentStarted = true;
-        this.randomizeMatchups(); // First round
+        this.rounds.push({ roundNumber: this.currentRound, matchups: randomizeMatchups(this.players) });
         this.saveData();
       }
-    },
-    randomizeMatchups() {
-      const shuffledPlayers = [...this.players].sort(() => 0.5 - Math.random());
-      const matchups = [];
-      for (let i = 0; i < shuffledPlayers.length; i += 2) {
-        const player1 = shuffledPlayers[i];
-        const player2 = shuffledPlayers[i + 1] || { name: 'Bye', score: 0 };
-        matchups.push({
-          players: [player1, player2],
-          result: null,
-          matchNumber: matchups.length + 1
-        });
-      }
-      this.rounds.push({ roundNumber: this.currentRound, matchups }); // Store matches by round
-      this.saveData();
     },
     updateScore(matchup, result, roundIndex, matchIndex) {
       if (this.rounds[roundIndex].matchups[matchIndex].result !== null) return;
@@ -79,18 +65,9 @@ export default {
           .filter(match => match.result === 1 || match.result === 2)
           .map(match => match.players[match.result === 1 ? 1 : 0]);
 
-        // Create new round with winners and losers
         const nextRound = [
-          {
-            players: [winners[0], winners[1]],
-            result: null,
-            matchNumber: 1
-          },
-          {
-            players: [losers[0], losers[1]],
-            result: null,
-            matchNumber: 2
-          }
+          { players: [winners[0], winners[1]], result: null, matchNumber: 1 },
+          { players: [losers[0], losers[1]], result: null, matchNumber: 2 }
         ];
 
         this.rounds.push({ roundNumber: ++this.currentRound, matchups: nextRound });
@@ -114,16 +91,14 @@ export default {
       this.saveData();
     },
     resetNextRounds() {
-      // Reset all rounds after the current one
       this.rounds = this.rounds.slice(0, this.currentRound);
     },
     clearData() {
-      this.showModal = true; // Show modal when user tries to clear data
+      this.showModal = true;
     },
     confirmClear() {
-      localStorage.removeItem('tournamentData'); // Clear localStorage
-      location.reload(); // Refresh the page
-      this.showModal = false;
+      localStorage.removeItem('tournamentData');
+      location.reload();
     },
     saveData() {
       const tournamentData = {
@@ -145,7 +120,39 @@ export default {
       }
     },
     handleValidation(passed) {
-      this.validationPassed = passed; // Update validation status
+      this.validationPassed = passed;
+    },
+    downloadJSON() {
+      const tournamentData = {
+        players: this.players,
+        rounds: this.rounds,
+        tournamentStarted: this.tournamentStarted,
+        currentRound: this.currentRound
+      };
+      createJSONFile(tournamentData); // Use helper function for JSON download
+    },
+    // New method for file upload
+    async handleFileUpload(event) {
+      const file = event.target.files[0]; // Get the file from input
+      if (file) {
+        try {
+          const fileContent = await file.text(); // Read the file content
+          const jsonData = JSON.parse(fileContent); // Parse it as JSON
+
+          // Basic validation
+          if (jsonData.players && jsonData.rounds && jsonData.currentRound !== undefined) {
+            this.players = jsonData.players; // Load players
+            this.rounds = jsonData.rounds; // Load rounds
+            this.currentRound = jsonData.currentRound; // Load current round
+            this.tournamentStarted = jsonData.tournamentStarted; // Load tournament state
+            this.uploadError = ''; // Clear any previous error
+          } else {
+            this.uploadError = 'Invalid JSON structure'; // Error message for invalid JSON
+          }
+        } catch (error) {
+          this.uploadError = 'Error parsing the JSON file'; // Error message if JSON parsing fails
+        }
+      }
     }
   },
   mounted() {
@@ -158,14 +165,11 @@ export default {
   <main class="app-content">
     <div class="overlay">
       <div class="container">
-        <!-- Player Input -->
         <form @submit.prevent="startTournament" v-if="!tournamentStarted">
-          <!-- Use ref to access validatePlayers method -->
           <PlayerInput ref="playerInput" :players="players" @validatePlayers="handleValidation" />
           <button type="submit" class="btn btn-primary">Start Tournament</button>
         </form>
 
-        <!-- Matchup Display and Player Standings -->
         <div v-if="tournamentStarted" class="mt-5">
           <div v-for="(round, roundIndex) in rounds" :key="round.roundNumber" class="mt-5">
             <h3>Round {{ round.roundNumber }}</h3>
@@ -173,20 +177,28 @@ export default {
               :roundIndex="roundIndex" />
           </div>
 
-          <!-- Player Standings Section -->
           <PlayerStandings :players="players" />
 
-          <!-- Buttons to Clear Data -->
           <div class="mt-4">
+            <button type="button" class="btn btn-primary" @click="downloadJSON">
+              Download Tournament Data
+            </button>
             <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#clearDataModal">
               Clear Tournament Data
             </button>
           </div>
         </div>
+
+        <!-- File input for JSON upload -->
+        <div class="mt-4">
+          <label for="fileUpload">Upload Tournament Data (JSON)</label>
+          <input type="file" id="fileUpload" @change="handleFileUpload" accept=".json" />
+          <div v-if="uploadError" class="text-danger">{{ uploadError }}</div> <!-- Display error if any -->
+        </div>
+
       </div>
     </div>
 
-    <!-- Modal Component -->
     <ClearDataModal :showModal="showModal" @confirmClear="confirmClear" />
   </main>
 </template>
