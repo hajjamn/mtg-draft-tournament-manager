@@ -1,15 +1,14 @@
 <script>
 import PlayerInput from '../components/PlayerInput.vue';
 import MatchupDisplay from '../components/MatchupDisplay.vue';
-import PlayerStandings from '../components/PlayerStandings.vue';
 import ClearDataModal from '../components/ClearDataModal.vue';
-import { randomizeMatchups, updateScore, modifyResult, createJSONFile } from '../utils/tournamentHelpers.js';
+import { randomizeMatchups, updateResult, modifyResult, saveTournamentData } from '../utils/tournamentHelpers.js';
+import { debugLog } from '../utils/debugHelpers'; // Import debugLog
 
 export default {
   components: {
     PlayerInput,
     MatchupDisplay,
-    PlayerStandings,
     ClearDataModal
   },
   data() {
@@ -19,13 +18,12 @@ export default {
       tournamentStarted: false,
       rounds: [],
       currentRound: 1,
+      tournamentType: 'single-elimination',
       showModal: false,
       validationPassed: false,
       uploadError: '',
-      tournamentType: 'single-elimination', // Default tournament type
       tournamentTypes: [
         { value: 'single-elimination', label: 'Single Elimination' },
-        { value: 'double-elimination', label: 'Double Elimination' },
         { value: 'round-robin', label: 'Round Robin' }
       ]
     };
@@ -34,19 +32,17 @@ export default {
     initializePlayers() {
       this.players = Array.from({ length: this.numPlayers }, () => ({
         name: '',
-        score: 0,
-        placement: null // Initialize placement
+        score: 0
       }));
     },
     startTournament() {
-      // Assign default names to players without a name
       this.players.forEach((player, index) => {
         if (!player.name.trim()) {
           player.name = `Player ${index + 1}`;
         }
       });
 
-      this.$refs.playerInput.validatePlayers(); // Run validation after assigning default names
+      this.$refs.playerInput.validatePlayers();
 
       if (this.validationPassed) {
         this.tournamentStarted = true;
@@ -54,9 +50,9 @@ export default {
         this.saveData();
       }
     },
-    updateScore(matchup, result, roundIndex, matchIndex) {
-      const totalRounds = Math.ceil(Math.log2(this.players.length)); // Total rounds in single elimination
-      updateScore(this.rounds[roundIndex].matchups[matchIndex], result, roundIndex, totalRounds, this.tournamentType); // Use helper
+    updateResult(roundIndex, matchIndex, result) {
+      if (!this.rounds[roundIndex] || !this.rounds[roundIndex].matchups) return;
+      updateResult(this.rounds[roundIndex].matchups[matchIndex], result);
       this.checkForNextRound();
       this.saveData();
     },
@@ -64,97 +60,45 @@ export default {
       const allDecided = this.rounds[this.currentRound - 1].matchups.every(match => match.result !== null);
 
       if (allDecided) {
-        // Round Robin: No additional rounds after all matchups
-        if (this.tournamentType === 'round-robin') {
-          return; // Stop after all matches are played
-        }
+        if (this.tournamentType === 'round-robin') return;
 
-        // Single Elimination Logic
         if (this.tournamentType === 'single-elimination') {
           const winners = this.rounds[this.currentRound - 1].matchups
             .filter(match => match.result === 1 || match.result === 2)
             .map(match => match.players[match.result - 1]);
 
-          const losers = this.rounds[this.currentRound - 1].matchups
-            .filter(match => match.result !== null)
-            .map(match => match.players[match.result === 1 ? 1 : 0]);
+          if (winners.length <= 1) return;
 
-          // Check if we are down to the final match
-          if (winners.length === 2 && this.currentRound === 2) {
-            // Add third place match round (semi-final losers)
-            this.rounds.push({
-              roundNumber: this.currentRound + 1,
-              matchups: [{
-                players: losers,
-                result: null,
-                matchNumber: 1
-              }]
-            });
-
-            // Add final round
-            this.rounds.push({
-              roundNumber: this.currentRound + 2,
-              matchups: [{
-                players: winners,
-                result: null,
-                matchNumber: 1
-              }]
-            });
-
-            this.currentRound += 2; // Increment for both third place and final rounds
-            this.saveData();
-            return;
-          }
-
-          // Proceed to next round if not yet in the final
-          const nextRound = [];
-          for (let i = 0; i < winners.length; i += 2) {
-            const player1 = winners[i];
-            const player2 = winners[i + 1] || { name: 'Bye', score: 0, isBye: true };
-
-            const matchup = {
-              players: [player1, player2],
-              result: null,
-              matchNumber: nextRound.length + 1
-            };
-
-            // Handle Bye in the next round
-            if (player2.isBye) {
-              player1.score += 3; // Player 1 gets 3 points for Bye
-              matchup.result = 1;  // Mark the result for Player 1 win
-            }
-
-            nextRound.push(matchup);
-          }
-
+          const nextRound = randomizeMatchups(winners, this.tournamentType);
           this.rounds.push({ roundNumber: ++this.currentRound, matchups: nextRound });
+          debugLog('The current round is now: ', this.currentRound)
           this.saveData();
         }
       }
     },
-    getRoundLabel(roundNumber) {
-      const totalRounds = Math.ceil(Math.log2(this.players.length)); // Calculate total number of rounds based on players
+    modifyResult(roundIndex, matchIndex) {
+      debugLog('Modifying result for roundIndex:', roundIndex, 'and matchIndex:', matchIndex);
 
-      if (roundNumber === 1) {
-        return `Round of ${Math.pow(2, totalRounds)}`; // First round: Round of 16, Round of 32, etc.
-      } else if (roundNumber === totalRounds) {
-        return 'Final'; // Final match
-      } else if (roundNumber === totalRounds - 1) {
-        return 'Semi-finals'; // Semi-final match
-      } else if (roundNumber === totalRounds - 2) {
-        return 'Quarter-finals'; // Quarter-final match
+      if (this.rounds[roundIndex] && this.rounds[roundIndex].matchups[matchIndex]) {
+        debugLog('Matchup exists, modifying the result.');
+        modifyResult(this.rounds[roundIndex].matchups[matchIndex]);
+        this.resetNextRounds(); // Reset future rounds
+        this.checkForNextRound(); // Re-check and re-generate next rounds
+        this.saveData(); // Save updated state
+        debugLog('The current rounds array is: ', this.rounds)
       } else {
-        const roundOf = Math.pow(2, totalRounds - roundNumber + 1); // Adjust the round calculation for earlier rounds
-        return `Round of ${roundOf}`;
+        debugLog('Attempted to modify a result in a non-existing round or match.');
       }
     },
-    modifyResult(matchup, roundIndex, matchIndex) {
-      modifyResult(this.rounds[roundIndex].matchups[matchIndex]); // Use helper
-      this.resetNextRounds();
-      this.saveData();
-    },
     resetNextRounds() {
-      this.rounds = this.rounds.slice(0, this.currentRound);
+      debugLog('Resetting rounds after current round:', this.currentRound);
+
+      // Reset rounds after the current round
+      this.rounds = [...this.rounds.slice(0, this.currentRound - 1)];
+
+      // Decrement current round accordingly
+      this.currentRound--;
+      debugLog('Current rounds after reset:', this.rounds);
     },
     clearData() {
       this.showModal = true;
@@ -164,14 +108,13 @@ export default {
       location.reload();
     },
     saveData() {
-      const tournamentData = {
-        players: this.players,
-        rounds: this.rounds,
-        tournamentStarted: this.tournamentStarted,
-        currentRound: this.currentRound,
-        tournamentType: this.tournamentType // Save tournament type
-      };
-      localStorage.setItem('tournamentData', JSON.stringify(tournamentData));
+      saveTournamentData(
+        this.players,
+        this.rounds,
+        this.tournamentStarted,
+        this.currentRound,
+        this.tournamentType
+      );
     },
     loadData() {
       const data = localStorage.getItem('tournamentData');
@@ -181,7 +124,7 @@ export default {
         this.rounds = tournamentData.rounds;
         this.tournamentStarted = tournamentData.tournamentStarted;
         this.currentRound = tournamentData.currentRound;
-        this.tournamentType = tournamentData.tournamentType || 'single-elimination'; // Load tournament type
+        this.tournamentType = tournamentData.tournamentType || 'single-elimination';
       }
     },
     handleValidation(passed) {
@@ -194,13 +137,13 @@ export default {
         tournamentStarted: this.tournamentStarted,
         currentRound: this.currentRound
       };
-      createJSONFile(tournamentData); // Use helper function for JSON download
+      createJSONFile(tournamentData);
     },
     async handleFileUpload(event) {
       const file = event.target.files[0];
       if (file) {
         try {
-          const fileContent = await file.text(); // Use await here
+          const fileContent = await file.text();
           const jsonData = JSON.parse(fileContent);
           if (jsonData.players && jsonData.rounds && jsonData.currentRound !== undefined) {
             this.players = jsonData.players;
@@ -250,19 +193,13 @@ export default {
           <button type="submit" class="btn btn-primary">Start Tournament</button>
         </form>
 
-        <!-- Matchup Display and Player Standings -->
+        <!-- Matchup Display -->
         <div v-if="tournamentStarted" class="mt-5">
           <div v-for="(round, roundIndex) in rounds" :key="round.roundNumber" class="mt-5">
-            <h3>Round {{ roundIndex + 1 }}
-              <span v-if="tournamentType === 'single-elimination'">- {{ getRoundLabel(roundIndex + 1) }}</span>
-            </h3>
-
-            <MatchupDisplay :matchups="round.matchups" @updateScore="updateScore" @modifyResult="modifyResult"
-              :roundIndex="roundIndex" />
+            <h3>Round {{ roundIndex + 1 }}</h3>
+            <MatchupDisplay :matchups="round.matchups" :roundIndex="roundIndex" :tournamentType="tournamentType"
+              @updateResult="updateResult" @modifyResult="modifyResult" />
           </div>
-
-          <!-- Player Standings Section -->
-          <PlayerStandings :players="players" :tournamentType="tournamentType" :rounds="rounds" />
 
           <!-- Buttons to Download Data and Clear Data -->
           <div class="mt-4">
@@ -279,7 +216,7 @@ export default {
         <div class="mt-4">
           <label for="fileUpload">Upload Tournament Data (JSON)</label>
           <input type="file" id="fileUpload" @change="handleFileUpload" accept=".json" />
-          <div v-if="uploadError" class="text-danger">{{ uploadError }}</div> <!-- Display error if any -->
+          <div v-if="uploadError" class="text-danger">{{ uploadError }}</div>
         </div>
       </div>
     </div>

@@ -1,15 +1,19 @@
 <script>
+import { debugLog } from '../utils/debugHelpers';
+
 export default {
   props: {
     matchups: Array,
-    roundIndex: Number
+    roundIndex: Number,
+    tournamentType: String
   },
   methods: {
-    updateScore(matchup, result, matchIndex) {
-      this.$emit('updateScore', matchup, result, this.roundIndex, matchIndex); // Pass the roundIndex and matchIndex
+    updateResult(matchIndex, result) {
+      this.$emit('updateResult', this.roundIndex, matchIndex, result);
+      debugLog('The arguments that the MathcupDisplay component is passing are: ', this.roundIndex, matchIndex, result)
     },
-    modifyResult(matchup, matchIndex) {
-      this.$emit('modifyResult', matchup, this.roundIndex, matchIndex); // Pass the roundIndex and matchIndex
+    modifyResult(matchIndex) {
+      this.$emit('modifyResult', this.roundIndex, matchIndex);
     }
   }
 };
@@ -17,20 +21,19 @@ export default {
 
 <template>
   <ul>
-    <li v-for="(matchup, index) in matchups" :key="index">
-      Match {{ index + 1 }}: {{ matchup.players[0].name }} vs {{ matchup.players[1].name }}
+    <li v-for="(matchup, matchIndex) in matchups" :key="matchIndex">
+      Match {{ matchIndex + 1 }}: {{ matchup.players[0].name }} vs {{ matchup.players[1].name }}
       <div v-if="matchup.result === null">
-        <button @click="updateScore(matchup, 1, index)" class="btn btn-success">Win for {{ matchup.players[0].name
+        <button @click="updateResult(matchIndex, 1)" class="btn btn-success">Win for {{ matchup.players[0].name
           }}</button>
-        <button @click="updateScore(matchup, 2, index)" class="btn btn-success">Win for {{ matchup.players[1].name
+        <button @click="updateResult(matchIndex, 2)" class="btn btn-success">Win for {{ matchup.players[1].name
           }}</button>
-        <button @click="updateScore(matchup, 0, index)" class="btn btn-secondary">Draw</button>
+        <button v-if="tournamentType === 'round-robin'" @click="updateResult(matchIndex, 0)"
+          class="btn btn-secondary">Draw</button>
       </div>
       <div v-else>
-        <button @click="modifyResult(matchup, index)" class="btn btn-warning">Modify Result</button>
+        <button @click="modifyResult(matchIndex)" class="btn btn-warning">Modify Result</button>
       </div>
     </li>
   </ul>
 </template>
-
-<style scoped></style>
