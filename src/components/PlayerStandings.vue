@@ -1,11 +1,15 @@
 <script>
 export default {
   props: {
-    players: Array
+    players: Array,
+    tournamentType: String,
+    rounds: Array // Added rounds prop to calculate final standings for single elimination
   },
   computed: {
     sortedPlayers() {
-      return [...this.players].sort((a, b) => b.score - a.score);
+      return [...this.players]
+        .filter(player => player.placement !== null) // Only show players with assigned placements
+        .sort((a, b) => a.placement - b.placement); // Sort by placement
     }
   }
 };
@@ -13,13 +17,26 @@ export default {
 
 <template>
   <div>
-    <h3 class="mt-5">Player Standings:</h3>
-    <ul>
+    <h3>Player Standings:</h3>
+
+    <!-- Display sorted standings for both single elimination and round-robin -->
+    <ul v-if="sortedPlayers.length > 0">
       <li v-for="(player, index) in sortedPlayers" :key="index">
-        {{ player.name }} - {{ player.score }} points
+        {{ player.placement }}: {{ player.name }}
       </li>
     </ul>
+
+    <p v-if="sortedPlayers.length === 0">No standings available yet.</p>
   </div>
 </template>
 
-<style scoped></style>
+<style scoped>
+ul {
+  list-style: none;
+  padding: 0;
+}
+
+li {
+  padding: 5px 0;
+}
+</style>
