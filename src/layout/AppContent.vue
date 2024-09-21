@@ -3,7 +3,7 @@ import PlayerInput from '../components/PlayerInput.vue';
 import MatchupDisplay from '../components/MatchupDisplay.vue';
 import PlayerStandings from '../components/PlayerStandings.vue';
 import ClearDataModal from '../components/ClearDataModal.vue';
-import { randomizeMatchups, createJSONFile } from '../utils/tournamentHelpers.js'; // Updated import
+import { randomizeMatchups, updateScore, modifyResult, createJSONFile } from '../utils/tournamentHelpers.js';
 
 export default {
   components: {
@@ -14,12 +14,8 @@ export default {
   },
   data() {
     return {
-      players: [
-        { name: '', score: 0 },
-        { name: '', score: 0 },
-        { name: '', score: 0 },
-        { name: '', score: 0 }
-      ],
+      numPlayers: 4, // Default number of players is 4
+      players: [],
       tournamentStarted: false,
       rounds: [],
       currentRound: 1,
@@ -29,6 +25,12 @@ export default {
     };
   },
   methods: {
+    initializePlayers() {
+      this.players = Array.from({ length: this.numPlayers }, () => ({
+        name: '',
+        score: 0
+      }));
+    },
     startTournament() {
       this.$refs.playerInput.validatePlayers();
       if (this.validationPassed) {
@@ -38,18 +40,7 @@ export default {
       }
     },
     updateScore(matchup, result, roundIndex, matchIndex) {
-      if (this.rounds[roundIndex].matchups[matchIndex].result !== null) return;
-
-      if (result === 1) {
-        this.rounds[roundIndex].matchups[matchIndex].players[0].score += 3;
-      } else if (result === 2) {
-        this.rounds[roundIndex].matchups[matchIndex].players[1].score += 3;
-      } else if (result === 0) {
-        this.rounds[roundIndex].matchups[matchIndex].players[0].score += 1;
-        this.rounds[roundIndex].matchups[matchIndex].players[1].score += 1;
-      }
-
-      this.rounds[roundIndex].matchups[matchIndex].result = result;
+      updateScore(this.rounds[roundIndex].matchups[matchIndex], result); // Use helper
       this.checkForNextRound();
       this.saveData();
     },
@@ -75,18 +66,7 @@ export default {
       }
     },
     modifyResult(matchup, roundIndex, matchIndex) {
-      const currentMatchup = this.rounds[roundIndex].matchups[matchIndex];
-
-      if (currentMatchup.result === 1) {
-        currentMatchup.players[0].score -= 3;
-      } else if (currentMatchup.result === 2) {
-        currentMatchup.players[1].score -= 3;
-      } else if (currentMatchup.result === 0) {
-        currentMatchup.players[0].score -= 1;
-        currentMatchup.players[1].score -= 1;
-      }
-
-      currentMatchup.result = null;
+      modifyResult(this.rounds[roundIndex].matchups[matchIndex]); // Use helper
       this.resetNextRounds();
       this.saveData();
     },
@@ -131,26 +111,24 @@ export default {
       };
       createJSONFile(tournamentData); // Use helper function for JSON download
     },
-    // New method for file upload
+    // Mark the function as async to use await
     async handleFileUpload(event) {
-      const file = event.target.files[0]; // Get the file from input
+      const file = event.target.files[0];
       if (file) {
         try {
-          const fileContent = await file.text(); // Read the file content
-          const jsonData = JSON.parse(fileContent); // Parse it as JSON
-
-          // Basic validation
+          const fileContent = await file.text(); // Use await here
+          const jsonData = JSON.parse(fileContent);
           if (jsonData.players && jsonData.rounds && jsonData.currentRound !== undefined) {
-            this.players = jsonData.players; // Load players
-            this.rounds = jsonData.rounds; // Load rounds
-            this.currentRound = jsonData.currentRound; // Load current round
-            this.tournamentStarted = jsonData.tournamentStarted; // Load tournament state
-            this.uploadError = ''; // Clear any previous error
+            this.players = jsonData.players;
+            this.rounds = jsonData.rounds;
+            this.currentRound = jsonData.currentRound;
+            this.tournamentStarted = jsonData.tournamentStarted;
+            this.uploadError = '';
           } else {
-            this.uploadError = 'Invalid JSON structure'; // Error message for invalid JSON
+            this.uploadError = 'Invalid JSON structure';
           }
         } catch (error) {
-          this.uploadError = 'Error parsing the JSON file'; // Error message if JSON parsing fails
+          this.uploadError = 'Error parsing the JSON file';
         }
       }
     }
@@ -165,20 +143,30 @@ export default {
   <main class="app-content">
     <div class="overlay">
       <div class="container">
+        <!-- Input for Number of Players -->
+        <div v-if="!tournamentStarted" class="mb-3">
+          <label for="numPlayers">Number of Players</label>
+          <input type="number" v-model="numPlayers" @input="initializePlayers" class="form-control" min="2" max="16" />
+        </div>
+
+        <!-- Player Input Fields -->
         <form @submit.prevent="startTournament" v-if="!tournamentStarted">
           <PlayerInput ref="playerInput" :players="players" @validatePlayers="handleValidation" />
           <button type="submit" class="btn btn-primary">Start Tournament</button>
         </form>
 
+        <!-- Matchup Display and Player Standings -->
         <div v-if="tournamentStarted" class="mt-5">
           <div v-for="(round, roundIndex) in rounds" :key="round.roundNumber" class="mt-5">
-            <h3>Round {{ round.roundNumber }}</h3>
+            <h3>Round {{ round.roundNumber }}</h3> <!-- Round Number -->
             <MatchupDisplay :matchups="round.matchups" @updateScore="updateScore" @modifyResult="modifyResult"
               :roundIndex="roundIndex" />
           </div>
 
+          <!-- Player Standings Section -->
           <PlayerStandings :players="players" />
 
+          <!-- Buttons to Download Data and Clear Data -->
           <div class="mt-4">
             <button type="button" class="btn btn-primary" @click="downloadJSON">
               Download Tournament Data
@@ -199,6 +187,7 @@ export default {
       </div>
     </div>
 
+    <!-- Clear Data Modal Component -->
     <ClearDataModal :showModal="showModal" @confirmClear="confirmClear" />
   </main>
 </template>

@@ -1,4 +1,3 @@
-// tournamentHelper.js
 export function randomizeMatchups(players) {
   const shuffledPlayers = [...players].sort(() => 0.5 - Math.random()); // Shuffle players
   const matchups = [];
