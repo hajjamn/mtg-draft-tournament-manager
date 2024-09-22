@@ -19,7 +19,7 @@ export default {
           <h5 class="modal-title" id="clearDataModalLabel">Clear Data</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
-        <div class="modal-body">
+        <div class="modal-body text-black">
           Are you sure you want to clear all tournament data?
         </div>
         <div class="modal-footer">

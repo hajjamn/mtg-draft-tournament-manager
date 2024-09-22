@@ -19,6 +19,7 @@ export default {
       rounds: [],
       currentRound: 1,
       tournamentType: 'single-elimination',
+      bestOfThree: false,
       showModal: false,
       validationPassed: false,
       uploadError: '',
@@ -32,7 +33,10 @@ export default {
     initializePlayers() {
       this.players = Array.from({ length: this.numPlayers }, () => ({
         name: '',
-        score: 0
+        score: 0,
+        wins: 0,
+        ties: 0,
+        losses: 0
       }));
     },
     startTournament() {
@@ -180,6 +184,14 @@ export default {
         </select>
       </div>
 
+      <!-- Best of 1 / Best of 3 Toggle Switch -->
+      <div v-if="!tournamentStarted" class="mb-3 toggle-switch">
+        <label for="bestOfThree">Best of 1</label>
+        <input type="checkbox" v-model="bestOfThree" id="bestOfThree" />
+        <label class="slider" for="bestOfThree"></label>
+        <label for="bestOfThree">Best of 3</label>
+      </div>
+
       <!-- Input for Number of Players -->
       <div v-if="!tournamentStarted" class="mb-3">
         <label for="numPlayers">Number of Players</label>
@@ -204,10 +216,14 @@ export default {
         <!-- Buttons to Download Data and Clear Data -->
         <div class="mt-4">
           <button type="button" class="btn btn-primary" @click="downloadJSON">Download Tournament Data</button>
-          <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#clearDataModal">Clear
-            Tournament Data</button>
+          <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#clearDataModal">
+            Clear Tournament Data
+          </button>
         </div>
       </div>
+
+      <!-- Clear Data Modal -->
+      <ClearDataModal :showModal="showModal" @confirmClear="confirmClear" />
 
       <!-- File input for JSON upload -->
       <div class="mt-4">
@@ -235,5 +251,51 @@ h3 {
 
 li {
   color: #ddd;
+}
+
+/* Toggle button */
+
+.toggle-switch {
+  display: flex;
+  align-items: center;
+}
+
+.toggle-switch input {
+  display: none;
+}
+
+.toggle-switch label {
+  margin: 0 10px;
+  font-size: 14px;
+}
+
+.toggle-switch .slider {
+  position: relative;
+  width: 50px;
+  height: 25px;
+  background-color: #ccc;
+  border-radius: 25px;
+  cursor: pointer;
+  transition: background-color 0.4s ease;
+}
+
+.toggle-switch .slider:before {
+  position: absolute;
+  content: "";
+  height: 21px;
+  width: 21px;
+  left: 2px;
+  bottom: 2px;
+  background-color: white;
+  border-radius: 50%;
+  transition: transform 0.4s ease;
+}
+
+input:checked+.slider {
+  background-color: #4caf50;
+}
+
+input:checked+.slider:before {
+  transform: translateX(25px);
 }
 </style>

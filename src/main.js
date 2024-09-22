@@ -3,7 +3,7 @@ import App from './App.vue';
 
 /* Import Bootstrap and Popper.js */
 import 'bootstrap/dist/css/bootstrap.min.css';
-import 'bootstrap/dist/js/bootstrap.bundle.min.js'; // Includes Popper.js
+import 'bootstrap/dist/js/bootstrap.bundle.min.js';
 
 /* Import the FontAwesome core */
 import { library } from '@fortawesome/fontawesome-svg-core';
