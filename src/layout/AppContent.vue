@@ -59,26 +59,39 @@ export default {
     },
     updateResult(roundIndex, matchIndex, result) {
       if (!this.rounds[roundIndex] || !this.rounds[roundIndex].matchups) return;
-      updateResult(this.rounds[roundIndex].matchups[matchIndex], result);
+      updateResult(this.rounds[roundIndex].matchups[matchIndex], result, this.bestOfThree);
       this.checkForNextRound();
       this.saveData();
     },
     checkForNextRound() {
-      const allDecided = this.rounds[this.currentRound - 1].matchups.every(match => match.result !== null);
+      const allDecided = this.rounds[this.currentRound - 1].matchups.every(match => {
+        if (this.bestOfThree) {
+          return match.result && match.result.player1Wins !== undefined && match.result.player2Wins !== undefined;
+        }
+        return match.result !== null;
+      });
 
       if (allDecided) {
         if (this.tournamentType === 'round-robin') return;
 
         if (this.tournamentType === 'single-elimination') {
-          const winners = this.rounds[this.currentRound - 1].matchups
-            .filter(match => match.result === 1 || match.result === 2)
-            .map(match => match.players[match.result - 1]);
+          let winners = [];
+
+          if (this.bestOfThree) {
+            winners = this.rounds[this.currentRound - 1].matchups
+              .filter(match => match.result.player1Wins === 2 || match.result.player2Wins === 2)
+              .map(match => (match.result.player1Wins === 2 ? match.players[0] : match.players[1]));
+          } else {
+            winners = this.rounds[this.currentRound - 1].matchups
+              .filter(match => match.result === 1 || match.result === 2)
+              .map(match => match.players[match.result - 1]);
+          }
 
           if (winners.length <= 1) return;
 
           const nextRound = randomizeMatchups(winners, this.tournamentType);
           this.rounds.push({ roundNumber: ++this.currentRound, matchups: nextRound });
-          debugLog('The current round is now: ', this.currentRound)
+          debugLog('The current round is now: ', this.currentRound);
           this.saveData();
         }
       }
@@ -210,7 +223,7 @@ export default {
         <div v-for="(round, roundIndex) in rounds" :key="round.roundNumber" class="mt-5">
           <h3>Round {{ roundIndex + 1 }}</h3>
           <MatchupDisplay :matchups="round.matchups" :roundIndex="roundIndex" :tournamentType="tournamentType"
-            @updateResult="updateResult" @modifyResult="modifyResult" />
+            :bestOfThree="bestOfThree" @updateResult="updateResult" @modifyResult="modifyResult" />
         </div>
 
         <!-- Buttons to Download Data and Clear Data -->

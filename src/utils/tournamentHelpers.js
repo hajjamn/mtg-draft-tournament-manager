@@ -52,7 +52,6 @@ export function updateResult(matchup, result, bestOfThree = false) {
   const player1 = matchup.players[0];
   const player2 = matchup.players[1];
 
-  // Best-of-1 logic
   if (!bestOfThree) {
     matchup.result = result;
     if (result === 1) {
@@ -62,40 +61,47 @@ export function updateResult(matchup, result, bestOfThree = false) {
       player2.wins++;
       player1.losses++;
     }
-  }
-
-  // Best-of-3 logic
-  else {
+  } else {
     matchup.result = result; // Result is expected to be { player1Wins: X, player2Wins: Y }
 
-    if (result.player1Wins === 2 && result.player2Wins === 0) {
-      // 2-0 win for player1
-      player1.score += 3;
-      player1.wins++;
-      player2.losses++;
-    } else if (result.player1Wins === 0 && result.player2Wins === 2) {
-      // 0-2 win for player2
-      player2.score += 3;
-      player2.wins++;
-      player1.losses++;
-    } else if (result.player1Wins === 2 && result.player2Wins === 1) {
-      // 2-1 win for player1
-      player1.score += 2;
-      player2.score += 1;
-      player1.wins++;
-      player2.losses++;
-    } else if (result.player1Wins === 1 && result.player2Wins === 2) {
-      // 1-2 win for player2
-      player2.score += 2;
-      player1.score += 1;
-      player2.wins++;
-      player1.losses++;
-    } else if (result.player1Wins === 1 && result.player2Wins === 1) {
-      // Draw (1-1) scenario
-      player1.ties++;
-      player2.ties++;
-      player1.score += 1;
-      player2.score += 1;
+    const matchOutcome = `${result.player1Wins}-${result.player2Wins}`;
+
+    switch (matchOutcome) {
+      case '2-0':
+        player1.score += 3;
+        player1.wins++;
+        player2.losses++;
+        break;
+
+      case '0-2':
+        player2.score += 3;
+        player2.wins++;
+        player1.losses++;
+        break;
+
+      case '2-1':
+        player1.score += 2;
+        player2.score += 1;
+        player1.wins++;
+        player2.losses++;
+        break;
+
+      case '1-2':
+        player2.score += 2;
+        player1.score += 1;
+        player2.wins++;
+        player1.losses++;
+        break;
+
+      case '1-1':
+        player1.ties++;
+        player2.ties++;
+        player1.score += 1;
+        player2.score += 1;
+        break;
+
+      default:
+        debugLog('Unexpected result:', result);
     }
   }
 
