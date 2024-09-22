@@ -2,8 +2,8 @@
 import PlayerInput from '../components/PlayerInput.vue';
 import MatchupDisplay from '../components/MatchupDisplay.vue';
 import ClearDataModal from '../components/ClearDataModal.vue';
-import { randomizeMatchups, updateResult, modifyResult, saveTournamentData } from '../utils/tournamentHelpers.js';
-import { debugLog } from '../utils/debugHelpers'; // Import debugLog
+import { randomizeMatchups, updateResult, modifyResult, saveTournamentData, loadTournamentData, createJSONFile, processUploadedFile } from '../utils/tournamentHelpers.js';
+import { debugLog } from '../utils/debugHelpers';
 
 export default {
   components: {
@@ -50,6 +50,9 @@ export default {
         this.saveData();
       }
     },
+    handleValidation(passed) {
+      this.validationPassed = passed;
+    },
     updateResult(roundIndex, matchIndex, result) {
       if (!this.rounds[roundIndex] || !this.rounds[roundIndex].matchups) return;
       updateResult(this.rounds[roundIndex].matchups[matchIndex], result);
@@ -82,9 +85,9 @@ export default {
       if (this.rounds[roundIndex] && this.rounds[roundIndex].matchups[matchIndex]) {
         debugLog('Matchup exists, modifying the result.');
         modifyResult(this.rounds[roundIndex].matchups[matchIndex]);
-        this.resetNextRounds(); // Reset future rounds
-        this.checkForNextRound(); // Re-check and re-generate next rounds
-        this.saveData(); // Save updated state
+        this.resetNextRounds();
+        this.checkForNextRound();
+        this.saveData();
         debugLog('The current rounds array is: ', this.rounds)
       } else {
         debugLog('Attempted to modify a result in a non-existing round or match.');
@@ -93,10 +96,8 @@ export default {
     resetNextRounds() {
       debugLog('Resetting rounds after current round:', this.currentRound);
 
-      // Reset rounds after the current round
       this.rounds = [...this.rounds.slice(0, this.currentRound - 1)];
 
-      // Decrement current round accordingly
       this.currentRound--;
       debugLog('Current rounds after reset:', this.rounds);
     },
@@ -127,41 +128,41 @@ export default {
         this.tournamentType = tournamentData.tournamentType || 'single-elimination';
       }
     },
-    handleValidation(passed) {
-      this.validationPassed = passed;
-    },
     downloadJSON() {
       const tournamentData = {
         players: this.players,
         rounds: this.rounds,
         tournamentStarted: this.tournamentStarted,
-        currentRound: this.currentRound
+        currentRound: this.currentRound,
+        tournamentType: this.tournamentType
       };
       createJSONFile(tournamentData);
     },
     async handleFileUpload(event) {
       const file = event.target.files[0];
-      if (file) {
-        try {
-          const fileContent = await file.text();
-          const jsonData = JSON.parse(fileContent);
-          if (jsonData.players && jsonData.rounds && jsonData.currentRound !== undefined) {
-            this.players = jsonData.players;
-            this.rounds = jsonData.rounds;
-            this.currentRound = jsonData.currentRound;
-            this.tournamentStarted = jsonData.tournamentStarted;
-            this.uploadError = '';
-          } else {
-            this.uploadError = 'Invalid JSON structure';
-          }
-        } catch (error) {
-          this.uploadError = 'Error parsing the JSON file';
-        }
+      const result = await processUploadedFile(file); // Call the helper function
+
+      if (result.success) {
+        const { players, rounds, currentRound, tournamentStarted } = result.data;
+        this.players = players;
+        this.rounds = rounds;
+        this.currentRound = currentRound;
+        this.tournamentStarted = tournamentStarted;
+        this.uploadError = '';
+      } else {
+        this.uploadError = result.message;
       }
-    }
+    },
   },
   mounted() {
-    this.loadData();
+    const tournamentData = loadTournamentData();
+    if (tournamentData) {
+      this.players = tournamentData.players;
+      this.rounds = tournamentData.rounds;
+      this.tournamentStarted = tournamentData.tournamentStarted;
+      this.currentRound = tournamentData.currentRound;
+      this.tournamentType = tournamentData.tournamentType || 'single-elimination';
+    }
   }
 };
 </script>
