@@ -168,79 +168,64 @@ export default {
 </script>
 
 <template>
-  <main class="app-content">
-    <div class="overlay">
-      <div class="container">
-        <!-- Select Tournament Type -->
-        <div v-if="!tournamentStarted" class="mb-3">
-          <label for="tournamentType">Tournament Type</label>
-          <select v-model="tournamentType" id="tournamentType" class="form-control">
-            <option v-for="type in tournamentTypes" :key="type.value" :value="type.value">
-              {{ type.label }}
-            </option>
-          </select>
+  <div class="overlay">
+    <div class="container">
+      <!-- Select Tournament Type -->
+      <div v-if="!tournamentStarted" class="mb-3">
+        <label for="tournamentType">Tournament Type</label>
+        <select v-model="tournamentType" id="tournamentType" class="form-control">
+          <option v-for="type in tournamentTypes" :key="type.value" :value="type.value">
+            {{ type.label }}
+          </option>
+        </select>
+      </div>
+
+      <!-- Input for Number of Players -->
+      <div v-if="!tournamentStarted" class="mb-3">
+        <label for="numPlayers">Number of Players</label>
+        <input type="number" v-model="numPlayers" @input="initializePlayers" class="form-control" min="2" max="16"
+          placeholder="3, 4, 5 etc..." />
+      </div>
+
+      <!-- Player Input Fields -->
+      <form @submit.prevent="startTournament" v-if="!tournamentStarted">
+        <PlayerInput ref="playerInput" :players="players" @validatePlayers="handleValidation" />
+        <button type="submit" class="btn btn-primary">Start Tournament</button>
+      </form>
+
+      <!-- Matchup Display -->
+      <div v-if="tournamentStarted" class="mt-5">
+        <div v-for="(round, roundIndex) in rounds" :key="round.roundNumber" class="mt-5">
+          <h3>Round {{ roundIndex + 1 }}</h3>
+          <MatchupDisplay :matchups="round.matchups" :roundIndex="roundIndex" :tournamentType="tournamentType"
+            @updateResult="updateResult" @modifyResult="modifyResult" />
         </div>
 
-        <!-- Input for Number of Players -->
-        <div v-if="!tournamentStarted" class="mb-3">
-          <label for="numPlayers">Number of Players</label>
-          <input type="number" v-model="numPlayers" @input="initializePlayers" class="form-control" min="2" max="16"
-            placeholder="3, 4, 5 etc..." />
-        </div>
-
-        <!-- Player Input Fields -->
-        <form @submit.prevent="startTournament" v-if="!tournamentStarted">
-          <PlayerInput ref="playerInput" :players="players" @validatePlayers="handleValidation" />
-          <button type="submit" class="btn btn-primary">Start Tournament</button>
-        </form>
-
-        <!-- Matchup Display -->
-        <div v-if="tournamentStarted" class="mt-5">
-          <div v-for="(round, roundIndex) in rounds" :key="round.roundNumber" class="mt-5">
-            <h3>Round {{ roundIndex + 1 }}</h3>
-            <MatchupDisplay :matchups="round.matchups" :roundIndex="roundIndex" :tournamentType="tournamentType"
-              @updateResult="updateResult" @modifyResult="modifyResult" />
-          </div>
-
-          <!-- Buttons to Download Data and Clear Data -->
-          <div class="mt-4">
-            <button type="button" class="btn btn-primary" @click="downloadJSON">
-              Download Tournament Data
-            </button>
-            <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#clearDataModal">
-              Clear Tournament Data
-            </button>
-          </div>
-        </div>
-
-        <!-- File input for JSON upload -->
+        <!-- Buttons to Download Data and Clear Data -->
         <div class="mt-4">
-          <label for="fileUpload">Upload Tournament Data (JSON)</label>
-          <input type="file" id="fileUpload" @change="handleFileUpload" accept=".json" />
-          <div v-if="uploadError" class="text-danger">{{ uploadError }}</div>
+          <button type="button" class="btn btn-primary" @click="downloadJSON">Download Tournament Data</button>
+          <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#clearDataModal">Clear
+            Tournament Data</button>
         </div>
       </div>
-    </div>
 
-    <!-- Clear Data Modal Component -->
-    <ClearDataModal :showModal="showModal" @confirmClear="confirmClear" />
-  </main>
+      <!-- File input for JSON upload -->
+      <div class="mt-4">
+        <label for="fileUpload">Upload Tournament Data (JSON)</label>
+        <input type="file" id="fileUpload" @change="handleFileUpload" accept=".json" />
+        <div v-if="uploadError" class="text-danger">{{ uploadError }}</div>
+      </div>
+    </div>
+  </div>
 </template>
 
 <style scoped>
-.app-content {
-  background: url('/duskmourn-wallpaper.webp') no-repeat top center fixed;
-  background-size: cover;
-  position: relative;
-  overflow: hidden;
-}
-
 .overlay {
   background-color: rgba(0, 0, 0, 0.7);
   color: white;
-  height: 100%;
-  padding: 20px;
+  flex-grow: 1;
   overflow: auto;
+  padding: 20px;
 }
 
 h2,
