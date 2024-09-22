@@ -1,6 +1,7 @@
 <script>
 import PlayerInput from '../components/PlayerInput.vue';
 import MatchupDisplay from '../components/MatchupDisplay.vue';
+import PlayerStandings from '../components/PlayerStandings.vue';
 import ClearDataModal from '../components/ClearDataModal.vue';
 import { randomizeMatchups, updateResult, modifyResult, saveTournamentData, loadTournamentData, createJSONFile, processUploadedFile } from '../utils/tournamentHelpers.js';
 import { debugLog } from '../utils/debugHelpers';
@@ -9,6 +10,7 @@ export default {
   components: {
     PlayerInput,
     MatchupDisplay,
+    PlayerStandings,
     ClearDataModal
   },
   data() {
@@ -225,6 +227,10 @@ export default {
           <MatchupDisplay :matchups="round.matchups" :roundIndex="roundIndex" :tournamentType="tournamentType"
             :bestOfThree="bestOfThree" @updateResult="updateResult" @modifyResult="modifyResult" />
         </div>
+
+        <!-- Display Standings if the tournament has started -->
+        <PlayerStandings v-if="tournamentStarted" :players="players" :tournamentType="tournamentType"
+          :bestOfThree="bestOfThree" />
 
         <!-- Buttons to Download Data and Clear Data -->
         <div class="mt-4">
