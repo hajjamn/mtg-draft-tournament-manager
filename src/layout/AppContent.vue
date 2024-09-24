@@ -1,44 +1,52 @@
 <script>
-import PlayerInput from '../components/PlayerInput.vue';
-import MatchupDisplay from '../components/MatchupDisplay.vue';
-import PlayerStandings from '../components/PlayerStandings.vue';
-import ClearDataModal from '../components/ClearDataModal.vue';
-import { randomizeMatchups, updateResult, modifyResult, saveTournamentData, loadTournamentData, createJSONFile, processUploadedFile } from '../utils/tournamentHelpers.js';
-import { debugLog } from '../utils/debugHelpers';
+import PlayerInput from "../components/PlayerInput.vue";
+import MatchupDisplay from "../components/MatchupDisplay.vue";
+import PlayerStandings from "../components/PlayerStandings.vue";
+import ClearDataModal from "../components/ClearDataModal.vue";
+import {
+  randomizeMatchups,
+  updateResult,
+  modifyResult,
+  saveTournamentData,
+  loadTournamentData,
+  createJSONFile,
+  processUploadedFile,
+} from "../utils/tournamentHelpers.js";
+import { debugLog } from "../utils/debugHelpers";
 
 export default {
   components: {
     PlayerInput,
     MatchupDisplay,
     PlayerStandings,
-    ClearDataModal
+    ClearDataModal,
   },
   data() {
     return {
-      numPlayers: Number,
+      numPlayers: 0,
       players: [],
       tournamentStarted: false,
       rounds: [],
       currentRound: 1,
-      tournamentType: 'single-elimination',
+      tournamentType: "single-elimination",
       bestOfThree: false,
       showModal: false,
       validationPassed: false,
-      uploadError: '',
+      uploadError: "",
       tournamentTypes: [
-        { value: 'single-elimination', label: 'Single Elimination' },
-        { value: 'round-robin', label: 'Round Robin' }
-      ]
+        { value: "single-elimination", label: "Single Elimination" },
+        { value: "round-robin", label: "Round Robin" },
+      ],
     };
   },
   methods: {
     initializePlayers() {
       this.players = Array.from({ length: this.numPlayers }, () => ({
-        name: '',
+        name: "",
         score: 0,
         wins: 0,
         ties: 0,
-        losses: 0
+        losses: 0,
       }));
     },
     startTournament() {
@@ -52,7 +60,10 @@ export default {
 
       if (this.validationPassed) {
         this.tournamentStarted = true;
-        this.rounds.push({ roundNumber: this.currentRound, matchups: randomizeMatchups(this.players, this.tournamentType) });
+        this.rounds.push({
+          roundNumber: this.currentRound,
+          matchups: randomizeMatchups(this.players, this.tournamentType),
+        });
         this.saveData();
       }
     },
@@ -61,70 +72,101 @@ export default {
     },
     updateResult(roundIndex, matchIndex, result) {
       if (!this.rounds[roundIndex] || !this.rounds[roundIndex].matchups) return;
-      updateResult(this.rounds[roundIndex].matchups[matchIndex], result, this.bestOfThree);
+      updateResult(
+        this.rounds[roundIndex].matchups[matchIndex],
+        result,
+        this.bestOfThree
+      );
       this.checkForNextRound();
       this.saveData();
     },
     checkForNextRound() {
-      const allDecided = this.rounds[this.currentRound - 1].matchups.every(match => {
-        if (this.bestOfThree) {
-          return match.result && match.result.player1Wins !== undefined && match.result.player2Wins !== undefined;
+      const allDecided = this.rounds[this.currentRound - 1].matchups.every(
+        (match) => {
+          if (this.bestOfThree) {
+            return (
+              match.result &&
+              match.result.player1Wins !== undefined &&
+              match.result.player2Wins !== undefined
+            );
+          }
+          return match.result !== null;
         }
-        return match.result !== null;
-      });
+      );
 
       if (allDecided) {
-        if (this.tournamentType === 'round-robin') return;
+        if (this.tournamentType === "round-robin") return;
 
-        if (this.tournamentType === 'single-elimination') {
+        if (this.tournamentType === "single-elimination") {
           let winners = [];
 
           if (this.bestOfThree) {
             winners = this.rounds[this.currentRound - 1].matchups
-              .filter(match => match.result.player1Wins === 2 || match.result.player2Wins === 2)
-              .map(match => (match.result.player1Wins === 2 ? match.players[0] : match.players[1]));
+              .filter(
+                (match) =>
+                  match.result.player1Wins === 2 ||
+                  match.result.player2Wins === 2
+              )
+              .map((match) =>
+                match.result.player1Wins === 2
+                  ? match.players[0]
+                  : match.players[1]
+              );
           } else {
             winners = this.rounds[this.currentRound - 1].matchups
-              .filter(match => match.result === 1 || match.result === 2)
-              .map(match => match.players[match.result - 1]);
+              .filter((match) => match.result === 1 || match.result === 2)
+              .map((match) => match.players[match.result - 1]);
           }
 
           if (winners.length <= 1) return;
 
           const nextRound = randomizeMatchups(winners, this.tournamentType);
-          this.rounds.push({ roundNumber: ++this.currentRound, matchups: nextRound });
-          debugLog('The current round is now: ', this.currentRound);
+          this.rounds.push({
+            roundNumber: ++this.currentRound,
+            matchups: nextRound,
+          });
+          debugLog("The current round is now: ", this.currentRound);
           this.saveData();
         }
       }
     },
     modifyResult(roundIndex, matchIndex) {
-      debugLog('Modifying result for roundIndex:', roundIndex, 'and matchIndex:', matchIndex);
+      debugLog(
+        "Modifying result for roundIndex:",
+        roundIndex,
+        "and matchIndex:",
+        matchIndex
+      );
 
-      if (this.rounds[roundIndex] && this.rounds[roundIndex].matchups[matchIndex]) {
-        debugLog('Matchup exists, modifying the result.');
+      if (
+        this.rounds[roundIndex] &&
+        this.rounds[roundIndex].matchups[matchIndex]
+      ) {
+        debugLog("Matchup exists, modifying the result.");
         modifyResult(this.rounds[roundIndex].matchups[matchIndex]);
         this.resetNextRounds();
         this.checkForNextRound();
         this.saveData();
-        debugLog('The current rounds array is: ', this.rounds)
+        debugLog("The current rounds array is: ", this.rounds);
       } else {
-        debugLog('Attempted to modify a result in a non-existing round or match.');
+        debugLog(
+          "Attempted to modify a result in a non-existing round or match."
+        );
       }
     },
     resetNextRounds() {
-      debugLog('Resetting rounds after current round:', this.currentRound);
+      debugLog("Resetting rounds after current round:", this.currentRound);
 
       this.rounds = [...this.rounds.slice(0, this.currentRound - 1)];
 
       this.currentRound--;
-      debugLog('Current rounds after reset:', this.rounds);
+      debugLog("Current rounds after reset:", this.rounds);
     },
     clearData() {
       this.showModal = true;
     },
     confirmClear() {
-      localStorage.removeItem('tournamentData');
+      localStorage.removeItem("tournamentData");
       location.reload();
     },
     saveData() {
@@ -133,18 +175,21 @@ export default {
         this.rounds,
         this.tournamentStarted,
         this.currentRound,
-        this.tournamentType
+        this.tournamentType,
+        this.bestOfThree
       );
     },
     loadData() {
-      const data = localStorage.getItem('tournamentData');
+      const data = localStorage.getItem("tournamentData");
       if (data) {
         const tournamentData = JSON.parse(data);
         this.players = tournamentData.players;
         this.rounds = tournamentData.rounds;
         this.tournamentStarted = tournamentData.tournamentStarted;
         this.currentRound = tournamentData.currentRound;
-        this.tournamentType = tournamentData.tournamentType || 'single-elimination';
+        this.tournamentType =
+          tournamentData.tournamentType || "single-elimination";
+        this.bestOfThree = tournamentData.bestOfThree || false;
       }
     },
     downloadJSON() {
@@ -153,7 +198,8 @@ export default {
         rounds: this.rounds,
         tournamentStarted: this.tournamentStarted,
         currentRound: this.currentRound,
-        tournamentType: this.tournamentType
+        tournamentType: this.tournamentType,
+        bestOfThree: this.bestOfThree, // Add bestOfThree here
       };
       createJSONFile(tournamentData);
     },
@@ -162,12 +208,19 @@ export default {
       const result = await processUploadedFile(file); // Call the helper function
 
       if (result.success) {
-        const { players, rounds, currentRound, tournamentStarted } = result.data;
+        const {
+          players,
+          rounds,
+          currentRound,
+          tournamentStarted,
+          bestOfThree,
+        } = result.data;
         this.players = players;
         this.rounds = rounds;
         this.currentRound = currentRound;
         this.tournamentStarted = tournamentStarted;
-        this.uploadError = '';
+        this.bestOfThree = bestOfThree || false;
+        this.uploadError = "";
       } else {
         this.uploadError = result.message;
       }
@@ -180,9 +233,11 @@ export default {
       this.rounds = tournamentData.rounds;
       this.tournamentStarted = tournamentData.tournamentStarted;
       this.currentRound = tournamentData.currentRound;
-      this.tournamentType = tournamentData.tournamentType || 'single-elimination';
+      this.tournamentType =
+        tournamentData.tournamentType || "single-elimination";
+      this.bestOfThree = tournamentData.bestOfThree;
     }
-  }
+  },
 };
 </script>
 
@@ -192,8 +247,16 @@ export default {
       <!-- Select Tournament Type -->
       <div v-if="!tournamentStarted" class="mb-3">
         <label for="tournamentType">Tournament Type</label>
-        <select v-model="tournamentType" id="tournamentType" class="form-control">
-          <option v-for="type in tournamentTypes" :key="type.value" :value="type.value">
+        <select
+          v-model="tournamentType"
+          id="tournamentType"
+          class="form-control"
+        >
+          <option
+            v-for="type in tournamentTypes"
+            :key="type.value"
+            :value="type.value"
+          >
             {{ type.label }}
           </option>
         </select>
@@ -210,31 +273,64 @@ export default {
       <!-- Input for Number of Players -->
       <div v-if="!tournamentStarted" class="mb-3">
         <label for="numPlayers">Number of Players</label>
-        <input type="number" v-model="numPlayers" @input="initializePlayers" class="form-control" min="2" max="16"
-          placeholder="3, 4, 5 etc..." />
+        <input
+          type="number"
+          v-model="numPlayers"
+          @input="initializePlayers"
+          class="form-control"
+          min="2"
+          max="16"
+          placeholder="3, 4, 5 etc..."
+        />
       </div>
 
       <!-- Player Input Fields -->
       <form @submit.prevent="startTournament" v-if="!tournamentStarted">
-        <PlayerInput ref="playerInput" :players="players" @validatePlayers="handleValidation" />
+        <PlayerInput
+          ref="playerInput"
+          :players="players"
+          @validatePlayers="handleValidation"
+        />
         <button type="submit" class="btn btn-primary">Start Tournament</button>
       </form>
 
       <!-- Matchup Display -->
       <div v-if="tournamentStarted" class="mt-5">
-        <div v-for="(round, roundIndex) in rounds" :key="round.roundNumber" class="mt-5">
+        <div
+          v-for="(round, roundIndex) in rounds"
+          :key="round.roundNumber"
+          class="mt-5"
+        >
           <h3>Round {{ roundIndex + 1 }}</h3>
-          <MatchupDisplay :matchups="round.matchups" :roundIndex="roundIndex" :tournamentType="tournamentType"
-            :bestOfThree="bestOfThree" @updateResult="updateResult" @modifyResult="modifyResult" />
+          <MatchupDisplay
+            :matchups="round.matchups"
+            :roundIndex="roundIndex"
+            :tournamentType="tournamentType"
+            :bestOfThree="bestOfThree"
+            @updateResult="updateResult"
+            @modifyResult="modifyResult"
+          />
         </div>
 
         <!-- Display Standings if the tournament has started -->
-        <PlayerStandings :players="players" :tournamentType="tournamentType" :bestOfThree="bestOfThree" :rounds="rounds" />
+        <PlayerStandings
+          :players="players"
+          :tournamentType="tournamentType"
+          :bestOfThree="bestOfThree"
+          :rounds="rounds"
+        />
 
         <!-- Buttons to Download Data and Clear Data -->
         <div class="mt-4">
-          <button type="button" class="btn btn-primary" @click="downloadJSON">Download Tournament Data</button>
-          <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#clearDataModal">
+          <button type="button" class="btn btn-primary" @click="downloadJSON">
+            Download Tournament Data
+          </button>
+          <button
+            type="button"
+            class="btn btn-danger"
+            data-bs-toggle="modal"
+            data-bs-target="#clearDataModal"
+          >
             Clear Tournament Data
           </button>
         </div>
@@ -246,7 +342,12 @@ export default {
       <!-- File input for JSON upload -->
       <div class="mt-4">
         <label for="fileUpload">Upload Tournament Data (JSON)</label>
-        <input type="file" id="fileUpload" @change="handleFileUpload" accept=".json" />
+        <input
+          type="file"
+          id="fileUpload"
+          @change="handleFileUpload"
+          accept=".json"
+        />
         <div v-if="uploadError" class="text-danger">{{ uploadError }}</div>
       </div>
     </div>
@@ -309,11 +410,11 @@ li {
   transition: transform 0.4s ease;
 }
 
-input:checked+.slider {
+input:checked + .slider {
   background-color: #4caf50;
 }
 
-input:checked+.slider:before {
+input:checked + .slider:before {
   transform: translateX(25px);
 }
 </style>

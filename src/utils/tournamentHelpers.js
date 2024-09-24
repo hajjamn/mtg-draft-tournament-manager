@@ -24,7 +24,7 @@ function singleElimination(players) {
     };
 
     if (player2.isBye) {
-      matchup.result = 1;  // Player 1 wins by default
+      matchup.result = 1;
     }
 
     matchups.push(matchup);
@@ -113,13 +113,14 @@ export function modifyResult(matchup) {
   debugLog('Modified result for matchup, reset:', matchup);
 }
 
-export function saveTournamentData(players, rounds, tournamentStarted, currentRound, tournamentType) {
+export function saveTournamentData(players, rounds, tournamentStarted, currentRound, tournamentType, bestOfThree) {
   const tournamentData = {
     players,
     rounds,
     tournamentStarted,
     currentRound,
-    tournamentType
+    tournamentType,
+    bestOfThree
   };
   localStorage.setItem('tournamentData', JSON.stringify(tournamentData));
   debugLog('Saved tournament data:', tournamentData);
@@ -129,7 +130,10 @@ export function loadTournamentData() {
   const data = localStorage.getItem('tournamentData');
   if (data) {
     const tournamentData = JSON.parse(data);
-    return tournamentData;
+    return {
+      ...tournamentData,
+      bestOfThree: tournamentData.bestOfThree || false // Ensure bestOfThree is loaded, default to false if missing
+    };
   }
   return null;
 }
@@ -157,6 +161,7 @@ export async function processUploadedFile(file) {
             rounds: jsonData.rounds,
             currentRound: jsonData.currentRound,
             tournamentStarted: jsonData.tournamentStarted,
+            bestOfThree: jsonData.bestOfThree || false
           },
         };
       } else {
