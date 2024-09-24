@@ -1,5 +1,5 @@
 <script>
-import { debugLog } from '../utils/debugHelpers';
+import { debugLog } from '../utils/debugHelpers'; // Import debugLog
 
 export default {
   props: {
@@ -43,7 +43,9 @@ export default {
         debugLog(`Invalid result for matchIndex ${matchIndex}: Total wins is ${totalWins}, which is too high.`);
         return;
       }
+      
       result.errorMessage = '';
+      debugLog(`Valid result for matchIndex ${matchIndex}: Submitting Bo3 result.`);
       this.$emit('updateResult', this.roundIndex, matchIndex, { player1Wins: result.player1Wins, player2Wins: result.player2Wins });
     }
   },
@@ -75,8 +77,7 @@ export default {
         <input type="number" v-model="bo3Results[matchIndex].player2Wins" min="0" max="2" />
 
         <!-- Error message display -->
-        <div v-if="bo3Results[matchIndex].errorMessage" class="text-danger">{{ bo3Results[matchIndex].errorMessage }}
-        </div>
+        <div v-if="bo3Results[matchIndex].errorMessage" class="text-danger">{{ bo3Results[matchIndex].errorMessage }}</div>
 
         <button @click="submitBo3Result(matchIndex)" class="btn btn-success">Submit Result</button>
       </div>
@@ -87,3 +88,18 @@ export default {
     </li>
   </ul>
 </template>
+
+<style scoped>
+ul {
+  list-style-type: none;
+  padding: 0;
+}
+
+li {
+  margin-bottom: 10px;
+}
+
+.text-danger {
+  color: red;
+}
+</style>

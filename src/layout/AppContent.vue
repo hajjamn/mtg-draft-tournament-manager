@@ -229,8 +229,7 @@ export default {
         </div>
 
         <!-- Display Standings if the tournament has started -->
-        <PlayerStandings v-if="tournamentStarted" :players="players" :tournamentType="tournamentType"
-          :bestOfThree="bestOfThree" />
+        <PlayerStandings :players="players" :tournamentType="tournamentType" :bestOfThree="bestOfThree" :rounds="rounds" />
 
         <!-- Buttons to Download Data and Clear Data -->
         <div class="mt-4">
