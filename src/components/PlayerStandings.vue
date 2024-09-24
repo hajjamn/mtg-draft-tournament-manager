@@ -1,91 +1,15 @@
 <script>
-import { debugLog } from "../utils/debugHelpers";
 export default {
   props: {
-    players: Array,
+    sortedPlayers: Array, // Only use sortedPlayers, no need for players prop
     tournamentType: String,
     bestOfThree: Boolean,
-    rounds: Array,
-  },
-  computed: {
-    sortedPlayers() {
-      return [...this.players].sort((a, b) => {
-        if (
-          this.tournamentType === "round-robin" &&
-          a.score !== undefined &&
-          b.score !== undefined
-        ) {
-          if (a.score === b.score) {
-            if (a.wins === b.wins) {
-              if (a.losses === b.losses) {
-                const headToHead = this.checkHeadToHead(a, b);
-                if (headToHead !== 0) return headToHead;
-
-                return a.name.localeCompare(b.name);
-              }
-              return a.losses - b.losses;
-            }
-            return b.wins - a.wins;
-          }
-          return b.score - a.score;
-        } else {
-          if (a.wins === b.wins) {
-            if (a.losses === b.losses) {
-              return a.name.localeCompare(b.name);
-            }
-            return a.losses - b.losses;
-          }
-          return b.wins - a.wins;
-        }
-      });
-    },
-  },
-  methods: {
-    checkHeadToHead(playerA, playerB) {
-      // Find the match between playerA and playerB
-      const matchBetween = this.rounds
-        .flatMap((round) => round.matchups)
-        .find(
-          (match) =>
-            match.players.includes(playerA) && match.players.includes(playerB)
-        );
-
-      // If no match exists or the result is null/undecided, return 0 (no preference)
-      if (!matchBetween || matchBetween.result === null) {
-        debugLog(
-          `No valid result found for the match between ${playerA.name} and ${playerB.name}.`
-        );
-        return 0;
-      }
-
-      // Log the match details
-      debugLog(`Found match between players:`, matchBetween);
-
-      // Determine the winner based on the result
-      if (matchBetween.result === 1) {
-        debugLog(
-          `Player A (${playerA.name}) won the head-to-head match against Player B (${playerB.name})`
-        );
-        return -1; // Player A wins
-      } else if (matchBetween.result === 2) {
-        debugLog(
-          `Player B (${playerB.name}) won the head-to-head match against Player A (${playerA.name})`
-        );
-        return 1; // Player B wins
-      }
-
-      // If the result is tied or undecided, return 0
-      debugLog(
-        `Head-to-head match between ${playerA.name} and ${playerB.name} is tied or undecided`
-      );
-      return 0;
-    },
   },
 };
 </script>
 
 <template>
-  <table>
+  <table class="text-center">
     <thead>
       <tr>
         <th>Player</th>
@@ -97,7 +21,7 @@ export default {
       </tr>
     </thead>
     <tbody>
-      <tr v-for="(player, index) in sortedPlayers.slice(0, 4)" :key="index">
+      <tr v-for="(player, index) in sortedPlayers" :key="index">
         <td>{{ player.name }}</td>
         <td v-if="tournamentType === 'round-robin'">
           {{ player.score ?? "-" }}
@@ -111,17 +35,3 @@ export default {
     </tbody>
   </table>
 </template>
-
-<style scoped>
-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-th,
-td {
-  padding: 8px;
-  text-align: left;
-  border-bottom: 1px solid #ddd;
-}
-</style>

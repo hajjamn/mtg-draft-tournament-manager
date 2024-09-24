@@ -23,14 +23,13 @@ export default {
   },
   data() {
     return {
-      numPlayers: 0,
+      numPlayers: null,
       players: [],
       tournamentStarted: false,
       rounds: [],
       currentRound: 1,
       tournamentType: "single-elimination",
       bestOfThree: false,
-      showModal: false,
       validationPassed: false,
       uploadError: "",
       tournamentTypes: [
@@ -95,7 +94,13 @@ export default {
       );
 
       if (allDecided) {
-        if (this.tournamentType === "round-robin") return;
+        if (this.tournamentType === "round-robin") {
+          // In round-robin, once all matches are played, stop generating new rounds
+          if (this.rounds.length === this.players.length - 1) {
+            this.determineWinners();
+          }
+          return; // Do not advance players in round-robin
+        }
 
         if (this.tournamentType === "single-elimination") {
           let winners = [];
@@ -118,7 +123,10 @@ export default {
               .map((match) => match.players[match.result - 1]);
           }
 
-          if (winners.length <= 1) return;
+          if (winners.length <= 1) {
+            this.determineWinners(); // Only one winner left, tournament complete
+            return;
+          }
 
           const nextRound = randomizeMatchups(winners, this.tournamentType);
           this.rounds.push({
@@ -129,6 +137,90 @@ export default {
           this.saveData();
         }
       }
+    },
+    checkForTieBreakers() {
+      // Sort players based on score, wins, losses, and head-to-head matches
+      const sortedPlayers = this.getSortedPlayers();
+
+      // Find tied players in the top 4
+      const tiedPlayers = sortedPlayers.filter((player, index, array) => {
+        return (
+          index < 4 &&
+          array[index + 1] &&
+          player.score === array[index + 1].score
+        );
+      });
+
+      if (tiedPlayers.length > 0) {
+        // Create new tiebreaker matches for tied players
+        const tiebreakerRound = randomizeMatchups(
+          tiedPlayers,
+          "single-elimination"
+        );
+        this.rounds.push({
+          roundNumber: ++this.currentRound,
+          matchups: tiebreakerRound,
+        });
+        this.saveData();
+        return true;
+      }
+
+      return false; // No tiebreakers needed
+    },
+    determineWinners() {
+      // Sort players based on the current standings
+      const finalStandings = this.getSortedPlayers();
+
+      this.winners = finalStandings.slice(0, 4); // Top 4 players
+
+      // Optional: Display the winners
+      alert(
+        `Tournament Winners: ${this.winners
+          .map((player) => player.name)
+          .join(", ")}`
+      );
+
+      this.tournamentCompleted = true;
+    },
+    getSortedPlayers() {
+      return [...this.players].sort((a, b) => {
+        if (a.score === b.score) {
+          if (a.wins === b.wins) {
+            if (a.losses === b.losses) {
+              const headToHead = this.checkHeadToHead(a, b);
+              return headToHead !== 0
+                ? headToHead
+                : a.name.localeCompare(b.name);
+            }
+            return a.losses - b.losses;
+          }
+          return b.wins - a.wins;
+        }
+        return b.score - a.score;
+      });
+    },
+    checkHeadToHead(playerA, playerB) {
+      const matchBetween = this.rounds
+        .flatMap((round) => round.matchups)
+        .find(
+          (match) =>
+            match.players.includes(playerA) && match.players.includes(playerB)
+        );
+
+      if (!matchBetween || !matchBetween.result) {
+        debugLog(
+          `No valid result found for the match between ${playerA.name} and ${playerB.name}.`
+        );
+        return 0; // No valid result to determine head-to-head
+      }
+
+      if (matchBetween.result === 1) {
+        return playerA === matchBetween.players[0] ? -1 : 1;
+      } else if (matchBetween.result === 2) {
+        return playerB === matchBetween.players[1] ? -1 : 1;
+      }
+
+      return 0;
     },
     modifyResult(roundIndex, matchIndex) {
       debugLog(
@@ -163,9 +255,6 @@ export default {
       debugLog("Current rounds after reset:", this.rounds);
     },
     clearData() {
-      this.showModal = true;
-    },
-    confirmClear() {
       localStorage.removeItem("tournamentData");
       location.reload();
     },
@@ -314,10 +403,9 @@ export default {
 
         <!-- Display Standings if the tournament has started -->
         <PlayerStandings
-          :players="players"
+          :sortedPlayers="getSortedPlayers()"
           :tournamentType="tournamentType"
           :bestOfThree="bestOfThree"
-          :rounds="rounds"
         />
 
         <!-- Buttons to Download Data and Clear Data -->
@@ -337,7 +425,7 @@ export default {
       </div>
 
       <!-- Clear Data Modal -->
-      <ClearDataModal :showModal="showModal" @confirmClear="confirmClear" />
+      <ClearDataModal @clearData="clearData" />
 
       <!-- File input for JSON upload -->
       <div class="mt-4">
