@@ -14,16 +14,16 @@ function singleElimination(players) {
   const shuffledPlayers = [...players].sort(() => 0.5 - Math.random());
   const matchups = [];
   for (let i = 0; i < shuffledPlayers.length; i += 2) {
-    const player1 = shuffledPlayers[i];
-    const player2 = shuffledPlayers[i + 1] || { name: 'Bye', isBye: true };
+    const playerA = shuffledPlayers[i];
+    const playerB = shuffledPlayers[i + 1] || { name: 'Bye', isBye: true };
 
     const matchup = {
-      players: [player1, player2],
+      players: [playerA, playerB],
       result: null,
       matchNumber: matchups.length + 1
     };
 
-    if (player2.isBye) {
+    if (playerB.isBye) {
       matchup.result = 1;
     }
 
@@ -49,55 +49,55 @@ function roundRobin(players) {
 }
 
 export function updateResult(matchup, result, bestOfThree = false) {
-  const player1 = matchup.players[0];
-  const player2 = matchup.players[1];
+  const playerA = matchup.players[0];
+  const playerB = matchup.players[1];
 
   if (!bestOfThree) {
     matchup.result = result;
     if (result === 1) {
-      player1.wins++;
-      player2.losses++;
+      playerA.wins++;
+      playerB.losses++;
     } else if (result === 2) {
-      player2.wins++;
-      player1.losses++;
+      playerB.wins++;
+      playerA.losses++;
     }
   } else {
-    matchup.result = result; // Result is expected to be { player1Wins: X, player2Wins: Y }
+    matchup.result = result; // Result is expected to be { playerAWins: X, playerBWins: Y }
 
-    const matchOutcome = `${result.player1Wins}-${result.player2Wins}`;
+    const matchOutcome = `${result.playerAWins}-${result.playerBWins}`;
 
     switch (matchOutcome) {
       case '2-0':
-        player1.score += 3;
-        player1.wins++;
-        player2.losses++;
+        playerA.score += 3;
+        playerA.wins++;
+        playerB.losses++;
         break;
 
       case '0-2':
-        player2.score += 3;
-        player2.wins++;
-        player1.losses++;
+        playerB.score += 3;
+        playerB.wins++;
+        playerA.losses++;
         break;
 
       case '2-1':
-        player1.score += 2;
-        player2.score += 1;
-        player1.wins++;
-        player2.losses++;
+        playerA.score += 2;
+        playerB.score += 1;
+        playerA.wins++;
+        playerB.losses++;
         break;
 
       case '1-2':
-        player2.score += 2;
-        player1.score += 1;
-        player2.wins++;
-        player1.losses++;
+        playerB.score += 2;
+        playerA.score += 1;
+        playerB.wins++;
+        playerA.losses++;
         break;
 
       case '1-1':
-        player1.ties++;
-        player2.ties++;
-        player1.score += 1;
-        player2.score += 1;
+        playerA.ties++;
+        playerB.ties++;
+        playerA.score += 1;
+        playerB.score += 1;
         break;
 
       default:

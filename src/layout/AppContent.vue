@@ -69,13 +69,97 @@ export default {
     handleValidation(passed) {
       this.validationPassed = passed;
     },
+    handleSubmittedResult(roundIndex, matchIndex, result) {
+      debugLog(
+        `Handling submitted result for round ${roundIndex + 1}, match ${
+          matchIndex + 1
+        }:`,
+        result
+      );
+      this.updateResult(roundIndex, matchIndex, result);
+    },
     updateResult(roundIndex, matchIndex, result) {
       if (!this.rounds[roundIndex] || !this.rounds[roundIndex].matchups) return;
-      updateResult(
-        this.rounds[roundIndex].matchups[matchIndex],
-        result,
-        this.bestOfThree
+
+      const matchup = this.rounds[roundIndex].matchups[matchIndex];
+      debugLog("matcup: ", matchup);
+      const playerA = matchup.players[0];
+      const playerB = matchup.players[1];
+
+      debugLog("Before updating, playerA:", playerA, "playerB:", playerB);
+
+      matchup.result = result;
+      debugLog("Updated matchup result:", matchup.result);
+
+      if (this.bestOfThree) {
+        debugLog("We are entering the bo3: ", this.bestOfThree);
+        debugLog("result: ", result);
+        if (
+          result.playerAWins !== undefined &&
+          result.playerBWins !== undefined
+        ) {
+          debugLog("Entering the if that regards: ", result.playerAWins);
+          const totalWins = result.playerAWins + result.playerBWins;
+          if (totalWins < 2 || totalWins > 3) {
+            debugLog("Invalid Bo3 result, skipping update.");
+            return;
+          }
+
+          const matchOutcome = `${result.playerAWins}-${result.playerBWins}`;
+
+          switch (matchOutcome) {
+            case "2-0":
+              playerA.score += 3;
+              playerA.wins += 2;
+              playerB.losses += 2;
+              break;
+
+            case "0-2":
+              playerB.score += 3;
+              playerB.wins += 2;
+              playerA.losses += 2;
+              break;
+
+            case "2-1":
+              playerA.score += 2;
+              playerB.score += 1;
+              playerA.wins += 2;
+              playerA.losses += 1;
+              playerB.wins += 1;
+              playerB.losses += 2;
+              break;
+
+            case "1-2":
+              playerB.score += 2;
+              playerA.score += 1;
+              playerB.wins += 2;
+              playerB.losses += 1;
+              playerA.wins += 1;
+              playerA.losses += 2;
+              break;
+
+            default:
+              debugLog("Unexpected result:", result);
+          }
+        }
+      } else {
+        if (result === 1) {
+          playerA.wins++;
+          playerB.losses++;
+        } else if (result === 2) {
+          playerB.wins++;
+          playerA.losses++;
+        }
+      }
+
+      debugLog("After updating, playerA:", playerA, "playerB:", playerB);
+      debugLog(
+        "playerA score:",
+        playerA.score,
+        "playerB score:",
+        playerB.score
       );
+
       this.checkForNextRound();
       this.saveData();
     },
@@ -85,8 +169,8 @@ export default {
           if (this.bestOfThree) {
             return (
               match.result &&
-              match.result.player1Wins !== undefined &&
-              match.result.player2Wins !== undefined
+              match.result.playerAWins !== undefined &&
+              match.result.playerBWins !== undefined
             );
           }
           return match.result !== null;
@@ -109,11 +193,11 @@ export default {
             winners = this.rounds[this.currentRound - 1].matchups
               .filter(
                 (match) =>
-                  match.result.player1Wins === 2 ||
-                  match.result.player2Wins === 2
+                  match.result.playerAWins === 2 ||
+                  match.result.playerBWins === 2
               )
               .map((match) =>
-                match.result.player1Wins === 2
+                match.result.playerAWins === 2
                   ? match.players[0]
                   : match.players[1]
               );
@@ -396,7 +480,7 @@ export default {
             :roundIndex="roundIndex"
             :tournamentType="tournamentType"
             :bestOfThree="bestOfThree"
-            @updateResult="updateResult"
+            @submitResult="handleSubmittedResult"
             @modifyResult="modifyResult"
           />
         </div>
@@ -425,7 +509,7 @@ export default {
       </div>
 
       <!-- Clear Data Modal -->
-      <ClearDataModal @clearData="clearData" />
+      <ClearDataModal @confirmClearData="clearData" />
 
       <!-- File input for JSON upload -->
       <div class="mt-4">

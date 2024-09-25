@@ -1,8 +1,8 @@
 <script>
 export default {
   methods: {
-    clearData() {
-      this.$emit("clearData");
+    confirmClearData() {
+      this.$emit("confirmClearData");
       const modalElement = document.getElementById("clearDataModal");
       const modalInstance = bootstrap.Modal.getInstance(modalElement);
       modalInstance.hide();
@@ -41,7 +41,11 @@ export default {
           >
             Cancel
           </button>
-          <button type="button" class="btn btn-danger" @click="clearData">
+          <button
+            type="button"
+            class="btn btn-danger"
+            @click="confirmClearData"
+          >
             Yes, Clear Data
           </button>
         </div>

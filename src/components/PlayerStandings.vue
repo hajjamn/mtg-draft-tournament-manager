@@ -1,7 +1,7 @@
 <script>
 export default {
   props: {
-    sortedPlayers: Array, // Only use sortedPlayers, no need for players prop
+    sortedPlayers: Array,
     tournamentType: String,
     bestOfThree: Boolean,
   },
